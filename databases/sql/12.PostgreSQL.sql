@@ -1,50 +1,69 @@
--- Active: 1688525394700@@pg-db@5432@testdb
+-- Active: 1758118886049@@localhost@5432@testdb
+-- ==========================================================================
+-- 1. Server Information
+-- ==========================================================================
+-- Check PostgreSQL version
 SELECT version();
-
 SHOW server_version;
 
-
+-- Show location of the database cluster
 SHOW data_directory;
+-- ==========================================================================
+-- 2. Database Management
+-- ==========================================================================
+-- Create a new database
+CREATE DATABASE testdb;
 
-create database testdb;
+-- Show current database
+SELECT current_database();
 
-select current_database();
+-- NOTE:
+-- Unlike MySQL, you cannot switch databases with "USE testdb;" in PostgreSQL.
+-- Instead, you must reconnect with the new database name.
+-- ==========================================================================
+-- 3. Table Creation
+-- ==========================================================================
+-- Create a simple table
+CREATE TABLE t1 (
+    id INT,
+    first_name VARCHAR(30)
+);
 
--- change current database in extension
-
-use testdb; -- ERROR this does not work with PostgreSQL :(
-
-create table t1(id int,first_name varchar(30));
-
-
--- some statements that work with MySQL but not with PostgreSQL
-CREATE TABLE t2 LIKE t1; -- ERROR
--- equivalent to CREATE TABLE t2 AS TABLE t1; in PostgreSQL
-CREATE TABLE t2 AS SELECT * FROM t1;
-SHOW COLUMNS FROM t1; -- ERROR 
-DESC t1; -- ERROR
--- equivalent to SHOW COLUMNS FROM t1; in MySQL
-SELECT column_name, data_type, table_name FROM information_schema.columns;
---WHERE table_name = 't1';
-
-
------------------------
-
--- insert values into table t1
+-- Insert single row
 INSERT INTO t1 VALUES (1, 'ahmed');
 
--- insert mutliple values into table t1
-INSERT INTO t1 VALUES (2, 'aya'), (3, 'john');
+-- Insert multiple rows
+INSERT INTO t1 VALUES 
+    (2, 'aya'), 
+    (3, 'john');
+-- ==========================================================================
+-- 4. Table Copying (MySQL vs PostgreSQL)
+-- ==========================================================================
+-- MySQL:   CREATE TABLE t2 LIKE t1;       -- ❌ Not supported in PostgreSQL
+-- Instead, in PostgreSQL:
 
--- create a table t2 based on t1
+-- Copy structure + data from t1
+CREATE TABLE t2 AS SELECT * FROM t1;
+
+-- Copy structure only from t1 (no data)
 CREATE TABLE t3 AS TABLE t1;
-
--- create a new table type 
-CREATE TYPE t1_type AS (id int, first_name varchar(30));
--- create a table based on that TYPE
+-- ==========================================================================
+-- 5. Inspecting Table Structure
+-- ==========================================================================
+-- MySQL:   SHOW COLUMNS FROM t1;  /  DESC t1;   -- ❌ Not supported
+-- Instead, in PostgreSQL:
+SELECT column_name, data_type, table_name
+FROM information_schema.columns
+WHERE table_name = 't1';
+-- ==========================================================================
+-- 6. Advanced Table & Type Features
+-- ==========================================================================
+-- (a) Create a composite TYPE and then a table based on it
+CREATE TYPE t1_type AS (
+    id INT,
+    first_name VARCHAR(30)
+);
 CREATE TABLE t4 OF t1_type;
 
--- create a new data type
-CREATE DOMAIN t1_domain AS varchar(30);
-
-
+-- (b) Create a DOMAIN (custom data type with constraints)
+CREATE DOMAIN t1_domain AS VARCHAR(30);

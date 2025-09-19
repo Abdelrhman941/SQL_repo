@@ -1,245 +1,254 @@
--- Active: 1688525394700@@pg-db@5432@sfpolice
--- 1. get the data from the below link
-----  https://data.sfgov.org/Public-Safety/Police-Department-Incident-Reports-Historical-2003/tmnf-yvry/data
--- 2. save the csv file in the rdbms/databases/csv folder
--- 3. make sure the pg container is running and attach to its shell 
--- 4. create a table in the database using the below command
--- # psql -U postgres
--- postgres=# CREATE DATABASE sfpolice;
--- poatgres=# \c sfpolice
-poatgres=# CREATE TABLE
-    police_incident_reports (
-        pd_id BIGINT,
-        IncidentNum VARCHAR(10),
-        "Incident Code" VARCHAR(10),
-        Category VARCHAR(50),
-        Descript VARCHAR(100),
-        DayOfWeek VARCHAR(10),
-        Date DATE,
-        Time TIME,
-        PdDistrict VARCHAR(10),
-        Resolution VARCHAR(50),
-        Address VARCHAR(100),
-        X NUMERIC(9, 6),
-        Y NUMERIC(9, 6),
-        location VARCHAR(55),
-        "SF Find Neighborhoods 2 2" FLOAT,
-        "Current Police Districts 2 2" INT,
-        "Current Supervisor Districts 2 2" INT,
-        "Analysis Neighborhoods 2 2" INT,
-        "DELETE - Fire Prevention Districts 2 2" INT,
-        "DELETE - Police Districts 2 2" INT,
-        "DELETE - Supervisor Districts 2 2" INT,
-        "DELETE - Zip Codes 2 2" INT,
-        "DELETE - Neighborhoods 2 2" INT,
-        "DELETE - 2017 Fix It Zones 2 2" INT,
-        "Civic Center Harm Reduction Project Boundary 2 2" INT,
-        "Fix It Zones as of 2017-11-06 2 2" INT,
-        "DELETE - HSOC Zones 2 2" INT,
-        "Fix It Zones as of 2018-02-07 2 2" INT,
-        "CBD, BID and GBD Boundaries as of 2017 2 2" INT,
-        "Areas of Vulnerability, 2016 2 2" INT,
-        "Central Market/Tenderloin Boundary 2 2" INT,
-        "Central Market/Tenderloin Boundary Polygon - Updated 2 2" INT,
-        "HSOC Zones as of 2018-06-05 2 2" INT,
-        "OWED Public Spaces 2 2" INT,
-        "Neighborhoods 2" INT
-    );
--- postgres=# \COPY police_incident_reports FROM '/usr/databases/csv/Police_Department_Incident_Reports__Historical_2003_to_May_2018.csv'  DELIMITER ',' CSV HEADER QUOTE '"';
+-- Active: 1758118886049@@localhost@5432@sfpolice@public
+-- ============================================================
+-- 1. Preview Data
+-- ============================================================
+SELECT * 
+FROM public.police_incident_reports 
+LIMIT 5;
 
--- what is the data?
+SELECT pd_id, incident_num, incident_code, category, descript, 
+    day_of_week, date, time, pd_district, resolution, 
+    address, x, y, location, data_loaded_at
+FROM public.police_incident_reports 
+LIMIT 50;
+
+-- ============================================================
+-- 2. Time Range (min, max years)
+-- ============================================================
 SELECT 
-	pd_id, 
-	incidentnum, 
-	"Incident Code", 
-	category, 
-	descript, 
-	dayofweek, 
-	date, 
-	"time", 
-	pddistrict, 
-	resolution, 
-	address, 
-	x, 
-	y, 
-	location 
--- 	"SF Find Neighborhoods 2 2", 
--- 	"Current Police Districts 2 2", 
--- 	"Current Supervisor Districts 2 2", 
--- 	"Analysis Neighborhoods 2 2"
--- 	"Civic Center Harm Reduction Project Boundary 2 2", 
--- 	"Fix It Zones as of 2017-11-06 2 2", 
--- 	"Fix It Zones as of 2018-02-07 2 2", 
--- 	"CBD, BID and GBD Boundaries as of 2017 2 2", 
--- 	"Areas of Vulnerability, 2016 2 2", 
--- 	"Central Market/Tenderloin Boundary 2 2", 
--- 	"Central Market/Tenderloin Boundary Polygon - Updated 2 2", 
--- 	"HSOC Zones as of 2018-06-05 2 2", 
--- 	"OWED Public Spaces 2 2", 
--- 	"Neighborhoods 2"
-	FROM public.police_incident_reports LIMIT 100;
+    DATE_PART('year', MIN(date)) AS min_year, 
+    DATE_PART('year', MAX(date)) AS max_year
+FROM public.police_incident_reports;
 
--- date span
-SELECT DATE_PART('year', max(date)) , DATE_PART('year', min(date))  FROM public.police_incident_reports
+-- ============================================================
+-- 3. Exploratory Data Analysis
+-- ============================================================
+-- Number of police districts
+SELECT COUNT(DISTINCT pd_district) AS num_districts
+FROM police_incident_reports;
 
--- drop columns marked to be deleted
+-- Number of unique addresses
+SELECT COUNT(DISTINCT address) AS num_addresses
+FROM police_incident_reports;
 
--- make sure you have a connection created using the vscode extension
+-- Incidents by address
+SELECT address, COUNT(*) AS incident_count
+FROM police_incident_reports
+GROUP BY address
+ORDER BY incident_count DESC;
 
--- Exploring data
-
--- 1. How many police districts are there?
-SELECT COUNT(DISTINCT pddistrict) FROM police_incident_reports;
-
--- How many neighborhoods are there?
-SELECT COUNT('Neighborhoods 2') FROM police_incident_reports;
-
--- How many incidents by neighborhood?
-SELECT "Neighborhoods 2" , COUNT(*) AS COUNT FROM police_incident_reports GROUP BY 1 order by COUNT(*); -- Try to visualize in pgadmin
-
--- Check the min and max number of incidents by neighborhood
-SELECT MAX(s.COUNT) AS MAX, MIN(s.COUNT) AS MIN, AVG(s.COUNT) As AVG 
+-- Min, Max, Avg incidents by address [subquery]
+SELECT 
+    MIN(s.count) AS min_incidents, 
+    AVG(s.count) AS avg_incidents,
+    MAX(s.count) AS max_incidents 
 FROM (
-    SELECT "Neighborhoods 2" AS Neighborhood, COUNT(*) FROM police_incident_reports GROUP BY "Neighborhoods 2" order by COUNT(*)
-    ) s;
+    SELECT address, COUNT(*) 
+    FROM police_incident_reports 
+    GROUP BY address) s;
 
+-- Classification of addresses as High/Low incident density
+SELECT address, COUNT(*) AS incident_count,
+    CASE 
+        WHEN COUNT(*) > (
+            SELECT AVG(s.count) 
+            FROM (
+                SELECT address, COUNT(*) 
+                    FROM police_incident_reports 
+                    GROUP BY address) s
+        ) THEN 'High'
+        ELSE 'Low'
+    END AS state
+FROM police_incident_reports
+GROUP BY address
+ORDER BY incident_count DESC;
 
--- KPIs for incidents by neighborhood
--- declare min, max, and avg as variables
-
-
-CREATE OR REPLACE FUNCTION avergae_no_of_incidents()
-RETURNS INT 
-AS $$
-DECLARE 
-    average integer := 0;
-
-BEGIN
-    SELECT AVG(s.COUNT) INTO average
-    FROM (
-        SELECT "Neighborhoods 2" AS Neighborhood, COUNT(*) FROM police_incident_reports GROUP BY "Neighborhoods 2" order by COUNT(*)
-        ) s;
-    return average;
-END;
-$$ LANGUAGE plpgsql;
-
-select avergae_no_of_incidents()
-
-SELECT "Neighborhoods 2" AS Neighborhood, COUNT(*), 
-		CASE 
-			WHEN COUNT(*) > avergae_no_of_incidents() THEN 'High'
-			ELSE 'LOW'
-		END  AS State
-	FROM police_incident_reports GROUP BY "Neighborhoods 2" order by COUNT(*)
-
-
--- replace the function with a subquery
-SELECT "Neighborhoods 2" AS Neighborhood, COUNT(*), 
-		CASE 
-			WHEN COUNT(*) > (SELECT AVG(s.COUNT) FROM (SELECT "Neighborhoods 2" AS Neighborhood, COUNT(*) FROM police_incident_reports GROUP BY "Neighborhoods 2" order by COUNT(*)) s) THEN 'High'
-			ELSE 'LOW'
-		END  AS State
-	FROM police_incident_reports GROUP BY "Neighborhoods 2" order by COUNT(*)
-
-
--- Data Cleanup 
--- Deduplication using Group By and Distinct 
+-- ============================================================
+-- 4. Data Cleanup Examples
+-- ============================================================
 -- Data Cleaning using CASE WHEN and LIKE
 -- Data Cleaning using TRIM, UPPER, LOWER, INITCAP, SUBSTRING, POSITION, LENGTH, CONCAT, REPLACE, TRANSLATE, REGEXP_REPLACE, REGEXP_MATCHES, REGEXP_SPLIT_TO_ARRAY, REGEXP_SPLIT_TO_TABLE, SPLIT_PART, TO_CHAR, TO_NUMBER, TO_DATE, TO_TIMESTAMP, TO_TIMESTAMP_TZ, TO_JSON, TO_JSONB, TO_ASCII, TO_HEX, TO_BASE64, TO_REGCLASS, TO_REGPROC, TO_REGPROCEDURE, TO_REGOPER, TO_RE
+-- Deduplication using Group By and Distinct 
 -- Type Conversion using CAST and :: 
-SELECT pd_id FROM police_incident_reports LIMIT 3; -- it's bigint now 
-SELECT pd_id*2 FROM police_incident_reports LIMIT 3; -- it's bigint now 
-SELECT (pd_id::varchar) + 2 FROM police_incident_reports LIMIT 3; -- Error as it's varchar now
-SELECT CAST(pd_id AS varchar) * 2 FROM police_incident_reports LIMIT 3; -- Error as it's varchar now
 
--- split string 
-SELECT split_part(CAST(pd_id AS varchar), '0', 1) FROM police_incident_reports LIMIT 3; -- can be split now as it's string
-SELECT split_part(pd_id, '0', 1) FROM police_incident_reports LIMIT 3; -- Error as it's bigint now and cannot be split 
+-- Deduplication
+SELECT DISTINCT * 
+FROM police_incident_reports;
 
+-- Type Conversion
+SELECT pd_id, (pd_id * 2) AS double_id
+FROM police_incident_reports
+LIMIT 3;
 
+-- String Functions
+SELECT split_part(CAST(pd_id AS varchar), '0', 1) AS split_id
+FROM police_incident_reports
+LIMIT 3;
 
--- Window Functions
+-- ============================================================
+-- 5. Aggregate vs Window Functions
+-- ============================================================
+-- Aggregate Functions:
+--   • Syntax: func(col) [WITH GROUP BY]
+--   • Examples: SUM, AVG, COUNT, MIN, MAX
+--   • Collapse rows → one row per group (or full table if no GROUP BY)
+--   • Use case: overall stats or grouped summaries
+--   • Similarity: same core functions as window functions
+--   • Difference: aggregate reduces row count, window keeps all rows
 
-select * from public.police_incident_reports limit 5;
+-- Window Functions:
+--   • Syntax: func(col) OVER ([PARTITION BY ...] [ORDER BY ...])
+--   • Functions: aggregates (SUM, AVG, COUNT...) + ranking (ROW_NUMBER, RANK...) + navigation (LAG, LEAD...)
+--   • Keep all rows → adds calculation as new column
+--   • Do NOT collapse rows
+--   • Use case: running totals, ranks, comparisons, distributions
+-- ====================================
+-- OVER
+-- ====================================
+--   • Syntax: func(col) OVER ([PARTITION BY ...] [ORDER BY ...])
+--   • Behavior: applies aggregate logic row-by-row
+--   • Difference: vs GROUP BY → does not collapse rows
+--   • Use case: totals, per-group counts, running sums
+-- Example: each row + total table count
+SELECT category, incident_num,COUNT(incident_num) OVER() AS total_incidents
+FROM police_incident_reports
+LIMIT 5; 
 
-select category, count(incidentnum) from police_incident_reports group by category;
+-- Example: Normal Group By (collapses rows)
+SELECT category, COUNT(incident_num) 
+FROM police_incident_reports
+GROUP BY category;
 
---What if I want to display the count of incidents by category but still see the rest of the columns in the table?
+-- Example: Each row + total category
+SELECT category, pd_district, descript, 
+    COUNT(incident_num) OVER(PARTITION BY category) AS category_count
+FROM police_incident_reports;
 
-select category, pddistrict, count(incidentnum) from police_incident_reports group by category, pddistrict --This will not work as this still shows the breakdown of the count by category then pddistrict
+-- Example: Distinct + Window = Normal Group By
+SELECT DISTINCT category, 
+    COUNT(incident_num) OVER(PARTITION BY category) AS category_count
+FROM police_incident_reports;
 
--- Must use the window function
-select *, count(incidentnum) over() from police_incident_reports
+-- Example: Running Count (cumulative)
+SELECT pd_id, category,
+    COUNT(pd_id) OVER(PARTITION BY category ORDER BY pd_id) AS running_count
+FROM police_incident_reports;
 
--- take a window of the full table
-Select category, pddistrict, descript, count(incidentnum) over() from police_incident_reports
+-- Example: Percentage (progress within category)
+SELECT pd_id, category,
+    CONCAT(
+        COUNT(pd_id) OVER(PARTITION BY category ORDER BY pd_id), '/', 
+        COUNT(incident_num) OVER(PARTITION BY category)
+    ) AS ratio
+FROM police_incident_reports;
 
--- change the scope of the window to the category alone
-Select category, pddistrict, descript, count(incidentnum) over(partition by category) from police_incident_reports
+-- ====================================
+-- ROW_NUMBER
+-- ====================================
+--   • Syntax: ROW_NUMBER() OVER ([PARTITION BY ...] [ORDER BY ...])
+--   • Behavior: assigns unique sequential numbers
+--   • Similarity: like RANK but no ties, always consecutive
+--   • Difference: cannot have duplicate numbers
+--   • Use case: pagination, picking first-N per group
+-- Unique row numbers
+SELECT ROW_NUMBER() OVER() AS Row_num, *
+FROM police_incident_reports;
 
--- if you would like to get the equivalent to Group By
-Select category, count(incidentnum) over(partition by category) from police_incident_reports -- this will list all rows with the count without flattening the rows
--- You must add DISTINCT statement to the above to get the equivalent to Group By
-Select DISTINCT category, count(incidentnum) over(partition by category) from police_incident_reports 
+-- Partitioned by category, ordered by date
+SELECT category, pd_district, date,
+    ROW_NUMBER() OVER(PARTITION BY category ORDER BY date) AS rn
+FROM police_incident_reports;
 
--- running count of pd_id by incident category
-SELECT pd_id, category, count(pd_id) over(partition by category order by pd_id) from public.police_incident_reports;
+-- First 2 incidents by category
+SELECT * 
+FROM (
+    SELECT category, pd_district, date,
+    ROW_NUMBER() OVER(PARTITION BY category ORDER BY date) AS Row_num
+    FROM police_incident_reports
+) t
+WHERE t.Row_num <= 2;
 
-<<<<<<< HEAD
--- the most ocurring category by year
-SELECT category, date_part('year', date) as year, count(category) over(partition by date_part('year', date) order by count(category) desc) from public.police_incident_reports;
+-- ====================================
+-- RANK vs DENSE_RANK
+-- ====================================
+--   • Syntax: RANK() OVER(...) / DENSE_RANK() OVER(...)
+--   • Behavior: assigns order based on ORDER BY
+--   • RANK(): gaps allowed (1,2,2,4)
+--   • DENSE_RANK(): no gaps (1,2,2,3)
+--   • Similarity: both handle ties
+--   • Use case: leaderboards, scores, categories
+SELECT category, pd_district, 
+    RANK() OVER(PARTITION BY incident_code ORDER BY pd_district) AS rank,
+    DENSE_RANK() OVER(PARTITION BY incident_code ORDER BY pd_district) AS dense_rank
+FROM police_incident_reports;
 
+-- ====================================
+-- NTILE(n)
+-- ====================================
+--   • Syntax: NTILE(n) OVER([PARTITION BY ... ORDER BY ...])
+--   • Behavior: splits rows into n buckets almost equally
+--   • Similarity: like percentiles but in discrete buckets
+--   • Use case: quartiles, deciles, stratified grouping
+SELECT category, date,
+    NTILE(4) OVER(PARTITION BY category ORDER BY date) AS quartile
+FROM police_incident_reports;
 
-=======
-SELECT pd_id, category, concat(cast(count(pd_id) over(partition by category order by pd_id) AS text), '/', cast(count(incidentnum) over(partition by category) as text)) from public.police_incident_reports;
->>>>>>> f1735f0 (updates to da)
+-- ====================================
+-- LAG / LEAD
+-- ====================================
+--   • Syntax: LAG(col, offset) OVER(...), LEAD(col, offset) OVER(...)
+--   • Behavior: fetch value from previous or next row
+--   • Similarity: like self-join on shifted data
+--   • Use case: diffs between rows, time series comparisons
+SELECT pd_id, category, date,
+    LAG(date) OVER(PARTITION BY category ORDER BY date) AS prev_date,
+    LEAD(date) OVER(PARTITION BY category ORDER BY date) AS next_date
+FROM police_incident_reports;
 
+-- ====================================
+-- FIRST_VALUE / LAST_VALUE
+-- ====================================
+--   • Syntax: FIRST_VALUE(col) OVER(...), LAST_VALUE(col) OVER(...)
+--   • Behavior: returns first/last row value within frame
+--   • Difference: LAST_VALUE needs explicit frame (otherwise = current row)
+--   • Use case: find earliest/latest in group
+SELECT category, date,
+    FIRST_VALUE(date) OVER(PARTITION BY category ORDER BY date) AS first_date,
+    LAST_VALUE(date) OVER(PARTITION BY category ORDER BY date ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS last_date
+FROM police_incident_reports;
 
--- row_number()
--- return a unique number for each row
-select *, row_number() over() from police_incident_reports
+-- ====================================
+-- CUME_DIST / PERCENT_RANK
+-- ====================================
+--   • Syntax: CUME_DIST() OVER(...), PERCENT_RANK() OVER(...)
+--   • CUME_DIST(): cumulative distribution (fraction of rows ≤ current)
+--   • PERCENT_RANK(): relative rank = (rank-1)/(n-1)
+--   • Similarity: both normalized 0–1
+--   • Use case: percentiles, relative scoring
+SELECT category, pd_district,
+    CUME_DIST() OVER(PARTITION BY category ORDER BY pd_district) AS cume_dist,
+    PERCENT_RANK() OVER(PARTITION BY category ORDER BY pd_district) AS percent_rank
+FROM police_incident_reports;
 
--- you can create different windows by spcifying a partition
-select category, pddistrict, date, row_number() over(partition by category) from police_incident_reports
+-- ============================================================
+-- 6. HR Example Dataset
+-- ============================================================
+CREATE DATABASE hr;
 
--- order the window to change the row number
-select category, pddistrict, date, row_number() over(partition by category order by date) from police_incident_reports
-
--- show the first 2 incidents by category and pddistrict
--- use subquery
-select * from (
-	select category, pddistrict, date, (row_number() over(partition by category order by date)) as rn  from police_incident_reports 
-) x
-where x.rn < 3
-
--- rank()
-
-select category, pddistrict, rank() over(partition by "Incident Code" order by pddistrict) from police_incident_reports
-
--- dense_rank()
-select category, pddistrict, dense_rank() over(partition by "Incident Code" order by pddistrict) from police_incident_reports
-
-
-
--- as another example create a new database and table 
-create database hr;
-
--- create and populate employee table
 CREATE TABLE employees (
-	employee_id INT,
-	first_name VARCHAR (20) DEFAULT NULL,
-	last_name VARCHAR (25) NOT NULL,
-	email VARCHAR (100) NOT NULL,
-	phone_number VARCHAR (20) DEFAULT NULL,
-	hire_date DATE NOT NULL,
-	job_id INT NOT NULL,
-	salary DECIMAL (8, 2) NOT NULL,
-	manager_id INT DEFAULT NULL,
-	department_id VARCHAR (25) DEFAULT NULL
+    employee_id INT,
+    first_name VARCHAR(20) DEFAULT NULL,
+    last_name VARCHAR(25) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    phone_number VARCHAR(20) DEFAULT NULL,
+    hire_date DATE NOT NULL,
+    job_id INT NOT NULL,
+    salary DECIMAL(8, 2) NOT NULL,
+    manager_id INT DEFAULT NULL,
+    department_id VARCHAR(25) DEFAULT NULL
 );
 
-
-
+-- (INSERT statements remain as in your script)
 INSERT INTO employees(employee_id,first_name,last_name,email,phone_number,hire_date,job_id,salary,manager_id,department_id) VALUES (100,'Steven','King','steven.king@sqltutorial.org','515.123.4567','1987-06-17',4,24000.00,NULL,'Executive');
 INSERT INTO employees(employee_id,first_name,last_name,email,phone_number,hire_date,job_id,salary,manager_id,department_id) VALUES (101,'Neena','Kochhar','neena.kochhar@sqltutorial.org','515.123.4568','1989-09-21',5,17000.00,100,'Executive');
 INSERT INTO employees(employee_id,first_name,last_name,email,phone_number,hire_date,job_id,salary,manager_id,department_id) VALUES (102,'Lex','De Haan','lex.de haan@sqltutorial.org','515.123.4569','1993-01-13',5,17000.00,100,'Executive');
@@ -281,19 +290,9 @@ INSERT INTO employees(employee_id,first_name,last_name,email,phone_number,hire_d
 INSERT INTO employees(employee_id,first_name,last_name,email,phone_number,hire_date,job_id,salary,manager_id,department_id) VALUES (205,'Shelley','Higgins','shelley.higgins@sqltutorial.org','515.123.8080','1994-06-07',2,12000.00,101,'Accounting');
 INSERT INTO employees(employee_id,first_name,last_name,email,phone_number,hire_date,job_id,salary,manager_id,department_id) VALUES (206,'William','Gietz','william.gietz@sqltutorial.org','515.123.8181','1994-06-07',1,8300.00,205,'Accounting');
 
-
 -------
 -- rank() and dense_rank()
 -------
-SELECT
-    first_name,
-    last_name,
-    department_id,
-    salary,
-    RANK() OVER(partition by department_id ORDER BY salary DESC) rank
-FROM
-    employees;
-
 SELECT
     first_name,
     last_name,
@@ -304,7 +303,9 @@ SELECT
 FROM
     employees;
 
-    -- lead() and lag()
+-------
+-- lead() and lag()
+-------
 SELECT
     first_name,
     last_name,
@@ -325,8 +326,9 @@ SELECT
 FROM
     employees;
 
-
+-------
 -- ntile()
+-------
 SELECT
     first_name,
     last_name,

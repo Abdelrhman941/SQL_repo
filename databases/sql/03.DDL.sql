@@ -1,69 +1,135 @@
--- create, drop, alter rename, etc
---
+-- MySQL DDL (Data Definition Language)
+-- Covers: CREATE, DROP, ALTER, RENAME for databases, tables, views
+-- ============================================================
 
--- create database
-CREATE DATABASE testdb;
+-- ============================================================
+-- 1. DATABASE COMMANDS
+-- ============================================================
+----------------------
+-- Create Database
+----------------------
+-- CREATE DATABASE testdb;
 CREATE DATABASE IF NOT EXISTS testdb;
 
--- drop database
+----------------------
+-- Drop Database
+----------------------
 DROP DATABASE testdb;
 DROP DATABASE IF EXISTS testdb;
 
-CREATE DATABASE testdb;
+----------------------
+-- Inspect Database
+----------------------
+SHOW CREATE DATABASE testdb;
 
--- create table
+-- ============================================================
+-- 2. TABLE COMMANDS
+-- ============================================================
+----------------------
+-- Select Database
+----------------------
 USE testdb;
-CREATE TABLE t1 (id INT, first_name VARCHAR(20));
 
--- drop table
+----------------------
+-- Create Simple Table
+----------------------
+CREATE TABLE t1 (
+    id INT,
+    first_name VARCHAR(20)
+);
+
+----------------------
+-- Drop Table
+----------------------
 DROP TABLE t1;
 
--- create table with column specs
+----------------------
+-- Create Table with NULL/NOT NULL
+----------------------
 CREATE TABLE t1 (
     id INT NOT NULL,
     first_name VARCHAR(20) NULL
 );
 
+----------------------
+-- Inspect Table
+----------------------
 SHOW COLUMNS FROM t1;
+SHOW CREATE TABLE t1;
 
--- create table with more column specs
+----------------------
+-- Create Table with More Column Specs
+----------------------
 CREATE TABLE t1 (
     id MEDIUMINT NOT NULL,
     first_name VARCHAR(20) NULL,
-    date_of_birth DATE NULL, -- add date type column
-    country VARCHAR(25) NOT NULL DEFAULT 'Egypt' -- adding default value 
+    date_of_birth DATE NULL,                        -- date type
+    country VARCHAR(25) NOT NULL DEFAULT 'Egypt'    -- default value
 );
 
--- alter table
---
-ALTER TABLE t1 ADD COLUMN last_name VARCHAR(25); -- add column
-ALTER TABLE t1 DROP COLUMN last_name; -- drop column
-ALTER TABLE t1 MODIFY COLUMN date_of_birth DATETIME; -- modify column definition
-ALTER TABLE t1 RENAME COLUMN date_of_birth TO dob; -- change column name
+-- ============================================================
+-- 3. ALTER TABLE COMMANDS
+-- ============================================================
+----------------------
+-- Add Column
+----------------------
+ALTER TABLE t1 ADD COLUMN last_name VARCHAR(25);
 
-ALTER TABLE t1 RENAME TO tbl1; -- rename table
-RENAME TABLE tbl1 TO t1; -- rename table
+----------------------
+-- Drop Column
+----------------------
+ALTER TABLE t1 DROP COLUMN last_name;
 
--- like
+----------------------
+-- Modify Column Definition
+----------------------
+ALTER TABLE t1 ADD COLUMN date_of_birth VARCHAR(25);
+SHOW COLUMNS FROM t1;
+ALTER TABLE t1 MODIFY COLUMN date_of_birth DATETIME;
+SHOW COLUMNS FROM t1;
+
+----------------------
+-- Rename Column
+----------------------
+ALTER TABLE t1 RENAME COLUMN date_of_birth TO dob;
+SHOW COLUMNS FROM t1;
+
+----------------------
+-- Rename Table
+----------------------
+ALTER TABLE t1 RENAME TO tbl1;
+RENAME TABLE tbl1 TO t1;
+
+-- ============================================================
+-- 4. CLONE TABLES
+-- ============================================================
+----------------------
+-- Create Empty Table with Same Structure
+----------------------
 CREATE TABLE t2 LIKE t1;
 
--- as select
+----------------------
+-- Create Table from Query (with data)
+----------------------
 CREATE TABLE t3 AS SELECT * FROM t1;
 
--- create view
+
+-- ============================================================
+-- 5. VIEW COMMANDS
+-- ============================================================
+----------------------
+-- Create View
+----------------------
 CREATE VIEW v1 AS
 SELECT id, first_name FROM t1;
 
--- alter view
+----------------------
+-- Alter View (redefine SELECT)
+----------------------
 ALTER VIEW v1 AS
 SELECT first_name, id FROM t1;
 
--- DROP VIEW
+----------------------
+-- Drop View
+----------------------
 DROP VIEW v1;
-
--- check schema and table inspection from workbench
-SHOW CREATE TABLE t1;
-SHOW CREATE DATABASE testdb;
-
-
-

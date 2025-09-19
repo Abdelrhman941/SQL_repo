@@ -1,22 +1,25 @@
--- if elseif else 
--- case when then else end
--- while end while
-
--- create a sql statement on film_list view to return high if rent is more than 3 and low if less than 3 using if statement 
-
+-- Active: 1754610173375@@localhost@3306@sakila
 -- If sakila database is not created, create it using the below commands using mysql cli
 -- SOURCE /usr/databases/sakila-db/sakila-schema.sql;
 -- SOURCE /usr/databases/sakila-db/sakila-data.sql;
-
 USE sakila;
+---------------------------------------------------------
+/* ------------ use if stmt in sql statement ------------ |
+IF(expr1,expr2,expr3)                                     | */
+---------------------------------------------------------
+-- create a sql statement on film_list view to return high if rent is more than 3 and low if less than 3 
 SELECT title,
     price,
     if(price>3,'high','low') as rental_rate_status 
 FROM film_list;
-
-
--- use case when then else end in sql statement
--- create a sql statement on film_list view to return high if rent is more than 3 and low if less than 3 using case when then else end statement
+---------------------------------------------------------
+/* ---- use case when then else end in sql statement ---- |
+CASE                                                      |
+    WHEN expr1 THEN result1                               |
+    WHEN expr2 THEN result2                               |
+    ELSE result3                                          |
+END                                                       | */
+---------------------------------------------------------
 SELECT title,
     price,
     CASE 
@@ -25,18 +28,14 @@ SELECT title,
         ELSE 'low'
     END AS rental_rate_status
 FROM film_list;
-
-
-
+---------------------------------------------------------
 -- use if stmt in functions or stored procedure
-
 DELIMITER $$
 CREATE FUNCTION fnComparePrice(p_price1 DECIMAL(5,2))
 RETURNS VARCHAR(30)
 DETERMINISTIC
 BEGIN
     DECLARE v_result VARCHAR(30);
-
     SET @avg = (SELECT AVG(price) FROM film_list);
     IF p_price1 > @avg THEN
         SET v_result = 'price1 is greater';
@@ -50,12 +49,7 @@ DELIMITER ;
 use sakila;
 SELECT AVG(price) FROM film_list;
 SELECT fnComparePrice(2.99);
-
-
-
-
-
-
+-------------------------------
 -- use case when then else end in functions or stored procedure
 DELIMITER $$
 CREATE FUNCTION fnComparePrice2(p_price1 DECIMAL(5,2))
@@ -63,7 +57,6 @@ RETURNS VARCHAR(30)
 DETERMINISTIC
 BEGIN
     DECLARE v_result VARCHAR(30);
-
     SET @avg = (SELECT AVG(price) FROM film_list);
     SET v_result = CASE 
         WHEN p_price1 > @avg THEN 'price1 is greater'
@@ -73,15 +66,12 @@ BEGIN
     RETURN v_result;
 END $$
 DELIMITER ;
-
-
-
--- while end while 
--- WHILE condition DO
---     statements;
--- END WHILE;
-
-
+---------------------------------------------------------
+/* -------- use while end while in sql statement -------- |
+WHILE condition DO                                        |
+    statements;                                           |
+END WHILE;                                                | */
+---------------------------------------------------------
 CREATE PROCEDURE dowhile()
 BEGIN 
     DECLARE v_counter INT DEFAULT 0;
@@ -90,6 +80,4 @@ BEGIN
         SELECT v_counter;
     END WHILE;
 END;
-
-
 CALL dowhile();
